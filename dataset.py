@@ -9,7 +9,8 @@ import cv2
 from matplotlib import pyplot as plt
 import json
 import codecs
-
+import logging
+import tqdm
 
 from PIL import Image, ImageDraw, ImageFont 
 from sklearn.model_selection import train_test_split
@@ -24,7 +25,8 @@ font_path = cfg.font_path
 dataset_path = {  'art': os.path.join(base_dir, 'art/train_task2_images'), 
                   'rects': os.path.join(base_dir, 'rects/img'),
                   'lsvt': os.path.join(base_dir, 'lsvt/train'),
-                  'icdar2017rctw': os.path.join(base_dir, 'icdar2017rctw/train'), } 
+                  'icdar2017rctw': os.path.join(base_dir, 'icdar2017rctw/train'),
+                  'vntext':  './datasets'} 
 
 lsvt_annotation = os.path.join(base_dir, 'lsvt/train_full_labels.json')
 art_annotation = os.path.join(base_dir, 'art/train_task2_labels.json')
@@ -82,6 +84,64 @@ class Dataset(object):
         self.bboxes = []
         self.points = []
 
+        
+
+
+
+class VN_TEXT(Dataset):
+    """
+        Text dataset preprocess for vietnamese
+    """
+    def __init__(self, name='vntext'):
+        super(VN_TEXT, self).__init__(name=name)
+
+    def load_data(self):
+        # logging defineable
+        logging.basicConfig(filename='logs/load_data.txt',
+                            filemode='a',
+                            format='%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s',
+                            datefmt='%H:%M:%S',
+                            level=logging.DEBUG)
+
+        all_dataset = os.listdir(self.data_path)
+        for data in all_dataset:
+            data_folder = os.path.join(self.data_path, data)
+            img_folder = os.path.join(data_folder, 'images')
+            with open (os.path.join(data_folder, 'labels.txt'), 'r') as f:
+                lines = f.readlines()
+                for line in tqdm.tqdm(lines):
+                    # print(line)
+                    try:
+                        filename, label = line.strip().split(' ', 1)
+                        img_name = os.path.join(img_folder, filename)
+                        img= cv2.imread(img_name)
+                        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+                        shape = img[:2]
+                        if len(label) > self.max_len - 1:
+                            continue
+                        if label == '###':
+                            continue
+
+                        label = preprocess(label)
+                        seq_label = []
+                        for char in label:
+                            seq_label.append(self.label_dict[char])  # .decode('utf-8')
+                    except Exception as e:
+                        logging.error("Logging load data", exc_info=True)
+                        continue
+                    seq_label.append(self.label_dict['EOS'])
+                    non_zero_count = len(seq_label)
+                    seq_label = seq_label + [self.label_dict['EOS']] * (self.max_len - non_zero_count)
+                    mask = [1] * (non_zero_count) + [0] * (self.max_len - non_zero_count)
+                    bbox =[[0 , 0 , shape[0]-1 , shape[1]- 1]]
+                    polygon = np.array([[0,0], [shape[1]-1, 0] , [0, shape[0]-1], [shape[0]-1, shape[1]-1]])
+
+
+                    self.bboxes.append(bbox)
+                    self.filenames.append(img_name)
+                    self.labels.append(seq_label)
+                    self.masks.append(mask)
+                    self.points.append(polygon)
                        
                     
 class ReCTS(Dataset):
@@ -382,23 +442,28 @@ class ICDAR2017RCTW(Dataset):
                         self.transcripts.append(label)
 
 if __name__=='__main__':
-    LSVT = LSVT()
-    LSVT.load_data() 
-    print(len(LSVT.filenames))
+    vn = VN_TEXT()
+    vn.load_data() 
+    print(len(vn.filenames))
+    filenames = vn.filenames
+    labels = vn.labels
+    masks = vn.masks
+    bboxes = vn.bboxes
+    points = vn.points
 
-    ART = ART()
-    ART.load_data()
-    print(len(ART.filenames))
+    # ART = ART()
+    # ART.load_data()
+    # print(len(ART.filenames))
 
-    ReCTS = ReCTS()
-    ReCTS.load_data()
-    print(len(ReCTS.filenames))
+    # ReCTS = ReCTS()
+    # ReCTS.load_data()
+    # print(len(ReCTS.filenames))
     
-    filenames = LSVT.filenames + ART.filenames + ReCTS.filenames
-    labels = LSVT.labels + ART.labels + ReCTS.labels
-    masks = LSVT.masks + ART.masks + ReCTS.masks
-    bboxes = LSVT.bboxes + ART.bboxes + ReCTS.bboxes
-    points = LSVT.points + ART.points + ReCTS.points
+    # filenames = LSVT.filenames + ART.filenames + ReCTS.filenames
+    # labels = LSVT.labels + ART.labels + ReCTS.labels
+    # masks = LSVT.masks + ART.masks + ReCTS.masks
+    # bboxes = LSVT.bboxes + ART.bboxes + ReCTS.bboxes
+    # points = LSVT.points + ART.points + ReCTS.points
 
     from sklearn.utils import shuffle
     filenames, labels, masks, bboxes, points = shuffle(filenames, labels, masks, bboxes, points, random_state=0)
@@ -406,12 +471,3 @@ if __name__=='__main__':
 
     dataset = {"filenames":filenames, "labels":labels, "masks":masks, "bboxes":bboxes, "points":points}
     np.save(cfg.dataset_name, dataset)
-
-    
-    
-
-
-    
-    
-    
-    
