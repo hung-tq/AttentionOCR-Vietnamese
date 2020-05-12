@@ -8,10 +8,13 @@ import time
 import argparse
 import numpy as np
 from matplotlib import pyplot as plt
-
+from model.tensorpack_model import *
 import config as cfg
 import tensorflow as tf
 from common import polygons_to_mask
+from tensorpack.predict import MultiTowerOfflinePredictor, OfflinePredictor, PredictConfig
+from tensorpack.tfutils import SmartInit, get_tf_version_tuple
+from tensorpack.tfutils.export import ModelExporter
 
 class TextRecognition(object):
     """
@@ -87,8 +90,24 @@ def preprocess(image, points, size=cfg.image_size):
     image = image/255.
     return image
 
+def label2str(preds, probs, label_dict, eos='EOS'):
+    """
+    Predicted sequence to string. 
+    """
+    results = []
+    for idx in preds:
+        if label_dict[idx] == eos:
+            break
+        print("char: ", label_dict[idx])
+        results.append(label_dict[idx])
+
+    probabilities = probs[:min(len(results)+1, cfg.seq_len+1)]
+    return ''.join(results), np.mean(probabilities)
+
 def test(args):
-    model = TextRecognition(args.pb_path, cfg.seq_len+1)
+    # model = TextRecognition(args.pb_path, cfg.seq_len+1)
+    model = AttentionOCR()
+
     
     for filename in os.listdir(args.img_folder):
         img_path = os.path.join(args.img_folder, filename)
@@ -103,20 +122,54 @@ def test(args):
         
         before = time.time()
         preds, probs = model.predict(image, cfg.label_dict)
+
         after = time.time()
+        print("Time runing: ", after-before)
 
         print(preds, probs)
 
-        plt.imshow(image[0,:,:,:])
-        plt.show()
+        # plt.imshow(image[0,:,:,:])
+        # plt.show()
+
+def test_checkpoint(args):
+
+    model = AttentionOCR()
+    predcfg = PredictConfig(
+        model=model,
+        session_init=SmartInit(args.checkpoint_path),
+        input_names=model.get_inferene_tensor_names()[0],
+        output_names=model.get_inferene_tensor_names()[1])
+
+    predictor = OfflinePredictor(predcfg)
+
+    for filename in os.listdir(args.img_folder):
+        img_path = os.path.join(args.img_folder, filename)
+        image = cv2.imread(img_path)
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+        height, width = image.shape[:2]
+        points = [[0,0], [width-1,0], [width-1,height-1], [0,height-1]]
+
+        image = preprocess(image, points, cfg.image_size)
+
+        before = time.time()
+        preds, probs = predictor(np.expand_dims(image, axis=0), np.ones([1,cfg.seq_len+1], np.int32), False, 1.)
+        print(preds)
+        print(probs)
+        after = time.time()
+        text, confidence = label2str(preds[0], probs[0], cfg.label_dict)
+        print("Image: ", filename)
+        print("Time predict: {}, predict: {}, confidence: {}".format(after-before, text, confidence))
+        print("------------------------------------------")
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='OCR')
 
-    parser.add_argument('--pb_path', type=str, help='path to tensorflow pb model', default='./checkpoint/text_recognition_5435.pb')
-    parser.add_argument('--img_folder', type=str, help='path to image folder', default='/opt/data/nfs/zhangjinjin/data/text/art/test_part1_task2_images')
+    parser.add_argument('--pb_path', type=str, help='path to tensorflow pb model', default='./checkpoint')
+    parser.add_argument('--checkpoint_path', type=str, help='path to tensorflow pb model', default='./checkpoint/model-100000')
+    parser.add_argument('--img_folder', type=str, help='path to image folder', default='datasets/test/sub')
     
     args = parser.parse_args()
-    test(args)
+    test_checkpoint(args)
     
