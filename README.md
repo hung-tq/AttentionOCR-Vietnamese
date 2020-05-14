@@ -26,6 +26,28 @@ pycocotools
 + [Show, Attend and Tell: Neural Image Caption Generation with Visual Attention](https://arxiv.org/abs/1502.03044) -->
 
 First download and extract multiple text datasets in base text dir, please refer to dataset.py for dataset preprocess and multiple datasets.
+## Vietnamese
+### Train
+
+  - Using pretrain inception v4
+  - [350k synthesize](https://github.com/docongminh/VietNamese-OCR-DataGenerator) images, one word per each image
+  - Using Tesla V100
+  - Step per epoch: 5000
+  - lstm size : 256
+### Log tensorboard
+
+- Cross Entropy Loss
+
+![](https://github.com/docongminh/AttentionOCR-Vietnamese/blob/master/imgs/cross_entropy_vn.png)
+
+- Reg Loss
+
+![](https://github.com/docongminh/AttentionOCR-Vietnamese/blob/master/imgs/reg_loss_vn.png)
+
+- Total Loss
+
+![](https://github.com/docongminh/AttentionOCR-Vietnamese/blob/master/imgs/total_loss_vn.png)
+
 
 ### Multiple Datasets
 
