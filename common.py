@@ -143,22 +143,23 @@ def filter_boxes_inside_shape(boxes, shape):
     return indices, boxes[indices, :]
 
 
-try:
-    import pycocotools.mask as cocomask
+# try:
+#     import pycocotools.mask as cocomask
 
-    # Much faster than utils/np_box_ops
-    def np_iou(A, B):
-        def to_xywh(box):
-            box = box.copy()
-            box[:, 2] -= box[:, 0]
-            box[:, 3] -= box[:, 1]
-            return box
+#     # Much faster than utils/np_box_ops
+#     def np_iou(A, B):
+#         def to_xywh(box):
+#             box = box.copy()
+#             box[:, 2] -= box[:, 0]
+#             box[:, 3] -= box[:, 1]
+#             return box
 
-        ret = cocomask.iou(
-            to_xywh(A), to_xywh(B),
-            np.zeros((len(B),), dtype=np.bool))
-        # can accelerate even more, if using float32
-        return ret.astype('float32')
+#         ret = cocomask.iou(
+#             to_xywh(A), to_xywh(B),
+#             np.zeros((len(B),), dtype=np.bool))
+#         # can accelerate even more, if using float32
+#         return ret.astype('float32')
 
-except ImportError:
-    from utils.np_box_ops import iou as np_iou  # noqa
+# except ImportError:
+#     from utils.np_box_ops import iou as np_iou  # noqa
+#     pass
