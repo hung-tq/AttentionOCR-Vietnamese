@@ -9,7 +9,7 @@ import numpy as np
 import inspect
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 
-def get_dict(path=os.path.join(currentdir, 'label_dict/icdar_labels.txt'), add_space=False, add_eos=False):
+def get_dict(path=os.path.join(currentdir, 'label_dict/vn_space.txt'), add_space=True, add_eos=False):
     """
     Load text label dict from preprocessed text file.
     Args:
