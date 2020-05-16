@@ -16,10 +16,10 @@ import multiprocessing
 from matplotlib import pyplot as plt
 from contextlib import contextmanager
 
-from common import (
-    CustomResize, DataFromListOfDict, box_to_point8,
-    filter_boxes_inside_shape, np_iou, point8_to_box, polygons_to_mask,
-)
+# from common import (
+#     CustomResize, DataFromListOfDict, box_to_point8,
+#     filter_boxes_inside_shape, np_iou, point8_to_box, polygons_to_mask,
+# )
 
 from dataset import LSVT, ART, ReCTS #, TotalText, ICDAR2017RCTW, MLT2019
 
@@ -162,6 +162,11 @@ def get_roidb(dataset_name):
     """
     Load generated numpy dataset for tensorpack dataflow.
     """
+    np_load_old = np.load
+
+    # modify the default parameters of np.load
+    np.load = lambda *a, **k: np_load_old(*a, allow_pickle=True, **k)
+    
     dataset = np.load(dataset_name)[()]
     filenames, labels, masks, bboxes, points = dataset["filenames"], dataset["labels"], dataset["masks"], dataset["bboxes"], dataset["points"]
 
