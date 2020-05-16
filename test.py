@@ -2,9 +2,10 @@
 # -*- coding: utf-8 -*-
 
 import os
-
+import json
 import cv2
 import time
+import tqdm
 import argparse
 import numpy as np
 from matplotlib import pyplot as plt
@@ -15,6 +16,7 @@ from common import polygons_to_mask
 from tensorpack.predict import MultiTowerOfflinePredictor, OfflinePredictor, PredictConfig
 from tensorpack.tfutils import SmartInit, get_tf_version_tuple
 from tensorpack.tfutils.export import ModelExporter
+
 
 class TextRecognition(object):
     """
@@ -58,6 +60,33 @@ class TextRecognition(object):
         
         return results, probabilities
 
+def cal_sim(str1, str2):
+    """
+        Normalized Edit Distance metric (1-N.E.D specifically)
+    """
+    m = len(str1) + 1
+    n = len(str2) + 1
+    matrix = np.zeros((m, n))
+    for i in range(m):
+        matrix[i][0] = i
+        
+    for j in range(n):
+        matrix[0][j] = j
+
+    for i in range(1, m):
+        for j in range(1, n):
+            if str1[i - 1] == str2[j - 1]:
+                matrix[i][j] = matrix[i - 1][j - 1]
+            else:
+                matrix[i][j] = min(matrix[i - 1][j - 1], min(matrix[i][j - 1], matrix[i - 1][j])) + 1
+    
+    lev = matrix[m-1][n-1]
+    if (max(m-1,n-1)) == 0:
+        sim = 1.0
+    else:
+        sim = 1.0-lev/(max(m-1,n-1))
+    return sim
+
 def preprocess(image, points, size=cfg.image_size):
     """
     Preprocess for test.
@@ -98,7 +127,6 @@ def label2str(preds, probs, label_dict, eos='EOS'):
     for idx in preds:
         if label_dict[idx] == eos:
             break
-        print("char: ", label_dict[idx])
         results.append(label_dict[idx])
 
     probabilities = probs[:min(len(results)+1, cfg.seq_len+1)]
@@ -141,35 +169,58 @@ def test_checkpoint(args):
         output_names=model.get_inferene_tensor_names()[1])
 
     predictor = OfflinePredictor(predcfg)
+    list_dict = []
+    with open("result/model-500000-512.txt", "w") as f:
+        ned = 0.
+        count = 0
+        for filename in os.listdir(args.img_folder)[500:]:
+            results = {}
+            img_path = os.path.join(args.img_folder, filename)
+            print("----> image path: ", img_path)
+            name = filename.split('_')[0]
+            image = cv2.imread(img_path)
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
-    for filename in os.listdir(args.img_folder):
-        img_path = os.path.join(args.img_folder, filename)
-        image = cv2.imread(img_path)
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            height, width = image.shape[:2]
+            points = [[0,0], [width-1,0], [width-1,height-1], [0,height-1]]
 
-        height, width = image.shape[:2]
-        points = [[0,0], [width-1,0], [width-1,height-1], [0,height-1]]
+            image = preprocess(image, points, cfg.image_size)
 
-        image = preprocess(image, points, cfg.image_size)
-
-        before = time.time()
-        preds, probs = predictor(np.expand_dims(image, axis=0), np.ones([1,cfg.seq_len+1], np.int32), False, 1.)
-        print(preds)
-        print(probs)
-        after = time.time()
-        text, confidence = label2str(preds[0], probs[0], cfg.label_dict)
-        print("Image: ", filename)
-        print("Time predict: {}, predict: {}, confidence: {}".format(after-before, text, confidence))
-        print("------------------------------------------")
+            before = time.time()
+            preds, probs = predictor(np.expand_dims(image, axis=0), np.ones([1,cfg.seq_len+1], np.int32), False, 1.)
+            print(preds)
+            print(probs)
+            
+            after = time.time()
+            text, confidence = label2str(preds[0], probs[0], cfg.label_dict)
+            print("Text: ", text)
+            print("Label: ", name)
+            print("confidence: ", confidence)
+            print("cal_sim: ", cal_sim(text, name))
+            ned += cal_sim(text, name)
+            count += 1
+            print("-------------------------------")
+            f.write("Path: {}".format(img_path))
+            f.write("\n")
+            f.write("Text: {}".format(text))
+            f.write("\n")
+            f.write("Label: {}".format(name))
+            f.write("\n")
+            f.write("Confidence: {}".format(confidence))
+            f.write("\n")
+            f.write("1-N.E.D: {}".format(cal_sim(text, name)))
+            f.write("\n")
+            f.write("---------------------------------------------")
+            f.write("\n")
+        f.write("Total {} Images | Average NED: {}".format(count, ned/count))
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='OCR')
 
     parser.add_argument('--pb_path', type=str, help='path to tensorflow pb model', default='./checkpoint')
-    parser.add_argument('--checkpoint_path', type=str, help='path to tensorflow pb model', default='./checkpoint/model-100000')
-    parser.add_argument('--img_folder', type=str, help='path to image folder', default='datasets/test/sub')
+    parser.add_argument('--checkpoint_path', type=str, help='path to tensorflow pb model', default='./checkpoint_lstm512/model-500000')
+    parser.add_argument('--img_folder', type=str, help='path to image folder', default='datasets/test/resized')
     
     args = parser.parse_args()
     test_checkpoint(args)
-    

@@ -12,7 +12,6 @@ import codecs
 import logging
 import tqdm
 
-
 from PIL import Image, ImageDraw, ImageFont 
 from sklearn.model_selection import train_test_split
 from sklearn.utils import shuffle
@@ -27,7 +26,7 @@ dataset_path = {  'art': os.path.join(base_dir, 'art/train_task2_images'),
                   'rects': os.path.join(base_dir, 'rects/img'),
                   'lsvt': os.path.join(base_dir, 'lsvt/train'),
                   'icdar2017rctw': os.path.join(base_dir, 'icdar2017rctw/train'),
-                  'vntext': './datasets' } 
+                  'vntext': './datasets' }
 
 lsvt_annotation = os.path.join(base_dir, 'lsvt/train_full_labels.json')
 art_annotation = os.path.join(base_dir, 'art/train_task2_labels.json')
@@ -103,7 +102,7 @@ class VN_TEXT(Dataset):
 
         all_dataset = os.listdir(self.data_path)
         for data in all_dataset:
-            data_folder = os.path.join(self.data_path, 'test')
+            data_folder = os.path.join(self.data_path, data)
             img_folder = os.path.join(data_folder, 'images')
             with open (os.path.join(data_folder, 'labels.txt'), 'r') as f:
                 lines = f.readlines()
@@ -111,9 +110,7 @@ class VN_TEXT(Dataset):
                     # print(line)
                     try:
                         filename, label = line.strip().split(' ', 1)
-                        print("---", filename)
-                        img_name = os.path.join(img_folder, filename)
-                        print(img_name)
+                        img_name = os.path.join(img_folder, filename)  
                         img= cv2.imread(img_name)
                         img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
                         shape = img[:2]
@@ -136,14 +133,12 @@ class VN_TEXT(Dataset):
                     bbox =[[0 , 0 , shape[0]-1 , shape[1]- 1]]
                     polygon = np.array([[0,0], [shape[1]-1, 0] , [0, shape[0]-1], [shape[0]-1, shape[1]-1]])
 
-                    print("===========")
+
                     self.bboxes.append(bbox)
                     self.filenames.append(img_name)
-                    print("---->>>>>>: ", self.filenames)
                     self.labels.append(seq_label)
                     self.masks.append(mask)
                     self.points.append(polygon)
-
                        
                     
 class ReCTS(Dataset):
@@ -448,12 +443,12 @@ if __name__=='__main__':
     vn.load_data() 
     print(len(vn.filenames))
 
-    
     filenames = vn.filenames
     labels = vn.labels
     masks = vn.masks
     bboxes = vn.bboxes
     points = vn.points
+
 
     from sklearn.utils import shuffle
     filenames, labels, masks, bboxes, points = shuffle(filenames, labels, masks, bboxes, points, random_state=0)
@@ -461,12 +456,3 @@ if __name__=='__main__':
 
     dataset = {"filenames":filenames, "labels":labels, "masks":masks, "bboxes":bboxes, "points":points}
     np.save(cfg.dataset_name, dataset)
-
-    
-    
-
-
-    
-    
-    
-    
