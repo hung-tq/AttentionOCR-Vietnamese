@@ -30,10 +30,12 @@ First download and extract multiple text datasets in base text dir, please refer
 ### Train
 
   - Using pretrain inception v4
-  - [350k synthesize](https://github.com/docongminh/VietNamese-OCR-DataGenerator) images, one word per each image
+  - [3.8m synthesize](https://github.com/docongminh/VietNamese-OCR-DataGenerator) images, one word per each image
   - Using Tesla V100
   - Step per epoch: 5000
   - lstm size : 256
+  - Result obtained 96.6% with Word Accuracy and 99.2% with Edit Distance Metrics
+  - [Pretrain with 3.8m images](https://drive.google.com/drive/folders/1MyxKQNgmsAGejhxuMZtwDreuWqOjGk68?usp=sharing)
 ### Log tensorboard
 
 - Cross Entropy Loss
